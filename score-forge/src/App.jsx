@@ -10,17 +10,18 @@ import Header       from "./components/Header";
 import Toolbar      from "./components/Toolbar";
 import Staff        from "./components/Staff";
 import PartSettings from "./components/PartSettings";
+import SetupModal   from "./components/SetupModal";
 
 // Utils
 import { KEY_NOTE_MAP, DURATION_MAP } from "./utils/constants";
 import { downloadMusicXML }           from "./utils/exportXML";
 
-// ── App ───────────────────────────────────────────────────────────────────────
+// ── App ──────────────────────────────────────────────────────────────
 export default function App() {
   // ── Score state (notes, parts, title…) ──────────────────────────────────
   const score = useScore();
 
-  // ── UI state ─────────────────────────────────────────────────────────────
+  // ── UI state ──────────────────────────────────────────────────────────
   const [selectedDuration,   setSelectedDuration]   = useState("4");
   const [selectedAccidental, setSelectedAccidental] = useState(null);
   const [inputMode,          setInputMode]          = useState("note"); // "note" | "rest"
@@ -31,8 +32,9 @@ export default function App() {
   const [zoom,               setZoom]               = useState(1);
   const [isPlaying,          setIsPlaying]          = useState(false);
   const [notification,       setNotification]       = useState(null);
+  const [showSetupModal,     setShowSetupModal]     = useState(!score.initialized);
 
-  // ── Audio ─────────────────────────────────────────────────────────────────
+  // ── Audio ───────────────────────────────────────────────────────────
   const audio = useAudio();
 
   // ── Notification helper ───────────────────────────────────────────────────
@@ -67,7 +69,7 @@ export default function App() {
   }, [selectedDuration, selectedAccidental, inputMode, isDotted,
       selectedPart, selectedMeasure, selectedNoteIdx, score, audio]);
 
-  // ── MIDI ──────────────────────────────────────────────────────────────────
+  // ── MIDI ───────────────────────────────────────────────────────────
   const midi = useMIDI({ onNoteOn: handleAddNote });
 
   async function connectMIDI() {
@@ -138,7 +140,7 @@ export default function App() {
     }
   }
 
-  // ── Playback ──────────────────────────────────────────────────────────────
+  // ── Playback ──────────────────────────────────────────────────────────
   function togglePlay() {
     if (isPlaying) {
       audio.stopScore();
@@ -149,12 +151,53 @@ export default function App() {
     }
   }
 
+  // ── Setup Modal handlers ────────────────────────────────────────────────────
+  function handleSetupConfirm(config) {
+    score.initializeScore(config);
+    setShowSetupModal(false);
+    notify("Tạo bản nhạc thành công!", "success");
+  }
+
   // ── Notification colors ───────────────────────────────────────────────────
   const notifColors = {
     success: { bg: "#dcfce7", color: "#166534" },
     error:   { bg: "#fee2e2", color: "#991b1b" },
     info:    { bg: "#dbeafe", color: "#1e40af" },
   };
+
+  // ── Empty state (before initialization) ──────────────────────────────────
+  if (!score.initialized) {
+    return (
+      <div style={{ fontFamily: "'Inter', system-ui, sans-serif", background: "#f1f5f9", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+        <SetupModal
+          isOpen={showSetupModal}
+          onClose={() => setShowSetupModal(false)}
+          onConfirm={handleSetupConfirm}
+        />
+
+        {!showSetupModal && (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <button
+              onClick={() => setShowSetupModal(true)}
+              style={{
+                padding: "16px 32px",
+                fontSize: 16,
+                fontWeight: 600,
+                background: "#7c3aed",
+                color: "white",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+                boxShadow: "0 4px 12px rgba(124, 58, 237, 0.3)",
+              }}
+            >
+              + Tạo bản nhạc mới
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div style={{ fontFamily: "'Inter', system-ui, sans-serif", background: "#f1f5f9", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
@@ -173,7 +216,7 @@ export default function App() {
         );
       })()}
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      {/* ── Header ─────────────────────────────────────────────────────────*/}
       <Header
         title={score.title}       setTitle={score.setTitle}
         composer={score.composer} setComposer={score.setComposer}
@@ -204,15 +247,17 @@ export default function App() {
           {/* Part tabs + zoom */}
           <div style={{ background: "white", borderBottom: "1px solid #e5e7eb", padding: "6px 16px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             {score.parts.map((p, i) => (
-              <button key={p.id} onClick={() => setSelectedPart(i)} style={{
-                padding: "3px 12px", borderRadius: 20, fontSize: 12, cursor: "pointer",
-                border: selectedPart === i ? "none" : "1px solid #e5e7eb",
-                background: selectedPart === i ? "#7c3aed" : "white",
-                color: selectedPart === i ? "white" : "#374151",
-                fontWeight: selectedPart === i ? 600 : 400,
-              }}>
-                {p.name}
-              </button>
+              !p.isGrouped && (
+                <button key={p.id} onClick={() => setSelectedPart(i)} style={{
+                  padding: "3px 12px", borderRadius: 20, fontSize: 12, cursor: "pointer",
+                  border: selectedPart === i ? "none" : "1px solid #e5e7eb",
+                  background: selectedPart === i ? "#7c3aed" : "white",
+                  color: selectedPart === i ? "white" : "#374151",
+                  fontWeight: selectedPart === i ? 600 : 400,
+                }}>
+                  {p.name}
+                </button>
+              )
             ))}
 
             <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
@@ -241,32 +286,106 @@ export default function App() {
                 )}
               </div>
 
-              {/* One row per part */}
-              {score.parts.map((part, pi) => (
-                <div key={part.id} style={{ marginBottom: 36, display: "flex", alignItems: "flex-start", gap: 10 }}
-                  onClick={() => setSelectedPart(pi)}>
+              {/* System groups (Voice + Piano pair with bracket) */}
+              {score.parts && score.parts.length >= 2 && (() => {
+                const systems = [];
+                let partIdx = 0;
+                
+                while (partIdx < score.parts.length) {
+                  const voicePart = score.parts[partIdx];
+                  
+                  // Check if this is a Voice part (not grouped)
+                  const hasVoice = voicePart && !voicePart.isGrouped && voicePart.name === "Voice";
+                  
+                  systems.push(
+                    <div key={`system-${partIdx}`} style={{ marginBottom: 56 }}>
+                      {/* Voice staff (if present) */}
+                      {hasVoice && (
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 32 }} 
+                          onClick={() => setSelectedPart(partIdx)}>
+                          <div style={{
+                            width: 88, fontSize: 11, fontWeight: 600, paddingTop: 48, textAlign: "right", flexShrink: 0,
+                            color: selectedPart === partIdx ? "#7c3aed" : "#9ca3af",
+                          }}>
+                            {voicePart.name}
+                          </div>
+                          <div style={{ flex: 1, overflowX: "auto", position: "relative" }}>
+                            <Staff
+                              part={voicePart}
+                              selectedMeasure={selectedPart === partIdx ? selectedMeasure : -1}
+                              selectedNoteIdx={selectedPart === partIdx ? selectedNoteIdx : -1}
+                              onNoteClick={(mi, ni) => { setSelectedPart(partIdx); setSelectedMeasure(mi); setSelectedNoteIdx(ni); }}
+                              onMeasureClick={(mi) => { setSelectedPart(partIdx); setSelectedMeasure(mi); setSelectedNoteIdx(null); }}
+                              zoom={zoom}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
+                      partIdx += hasVoice ? 1 : 0;
 
-                  {/* Part label */}
-                  <div style={{
-                    width: 88, fontSize: 11, fontWeight: 600, paddingTop: 48, textAlign: "right", flexShrink: 0,
-                    color: selectedPart === pi ? "#7c3aed" : "#9ca3af",
-                  }}>
-                    {part.name}
-                  </div>
+                      {/* Piano staves (grouped with bracket) */}
+                      {partIdx < score.parts.length && score.parts[partIdx] && score.parts[partIdx].isGrouped && (
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, position: "relative" }}>
+                          <div style={{ width: 88, flexShrink: 0 }}></div>
+                          <div style={{ flex: 1, position: "relative" }}>
+                            {/* Piano bracket */}
+                            <svg 
+                              width="20" 
+                              height="164" 
+                              style={{ 
+                                position: "absolute", 
+                                left: "-12px", 
+                                top: "-8px",
+                                zIndex: 10
+                              }}
+                              viewBox="0 0 20 164"
+                            >
+                              {/* Vertical line */}
+                              <line x1="14" y1="8" x2="14" y2="156" stroke="#1a1a1a" strokeWidth="2.5" />
+                              {/* Top hook */}
+                              <line x1="6" y1="8" x2="14" y2="8" stroke="#1a1a1a" strokeWidth="2.5" />
+                              {/* Bottom hook */}
+                              <line x1="6" y1="156" x2="14" y2="156" stroke="#1a1a1a" strokeWidth="2.5" />
+                              {/* Curve at top */}
+                              <path d="M 6 8 Q 2 40 6 72" fill="none" stroke="#1a1a1a" strokeWidth="2.5" strokeLinecap="round" />
+                              {/* Curve at bottom */}
+                              <path d="M 6 92 Q 2 124 6 156" fill="none" stroke="#1a1a1a" strokeWidth="2.5" strokeLinecap="round" />
+                            </svg>
 
-                  {/* Staff */}
-                  <div style={{ flex: 1, overflowX: "auto" }}>
-                    <Staff
-                      part={part}
-                      selectedMeasure={selectedPart === pi ? selectedMeasure : -1}
-                      selectedNoteIdx={selectedPart === pi ? selectedNoteIdx  : -1}
-                      onNoteClick={(mi, ni) => { setSelectedPart(pi); setSelectedMeasure(mi); setSelectedNoteIdx(ni); }}
-                      onMeasureClick={(mi)  => { setSelectedPart(pi); setSelectedMeasure(mi); setSelectedNoteIdx(null); }}
-                      zoom={zoom}
-                    />
-                  </div>
-                </div>
-              ))}
+                            {/* Piano RH (Treble) */}
+                            <div style={{ marginBottom: 20 }} onClick={() => setSelectedPart(partIdx)}>
+                              <Staff
+                                part={score.parts[partIdx]}
+                                selectedMeasure={selectedPart === partIdx ? selectedMeasure : -1}
+                                selectedNoteIdx={selectedPart === partIdx ? selectedNoteIdx : -1}
+                                onNoteClick={(mi, ni) => { setSelectedPart(partIdx); setSelectedMeasure(mi); setSelectedNoteIdx(ni); }}
+                                onMeasureClick={(mi) => { setSelectedPart(partIdx); setSelectedMeasure(mi); setSelectedNoteIdx(null); }}
+                                zoom={zoom}
+                              />
+                            </div>
+
+                            {/* Piano LH (Bass) */}
+                            <div onClick={() => setSelectedPart(partIdx + 1)}>
+                              <Staff
+                                part={score.parts[partIdx + 1]}
+                                selectedMeasure={selectedPart === (partIdx + 1) ? selectedMeasure : -1}
+                                selectedNoteIdx={selectedPart === (partIdx + 1) ? selectedNoteIdx : -1}
+                                onNoteClick={(mi, ni) => { setSelectedPart(partIdx + 1); setSelectedMeasure(mi); setSelectedNoteIdx(ni); }}
+                                onMeasureClick={(mi) => { setSelectedPart(partIdx + 1); setSelectedMeasure(mi); setSelectedNoteIdx(null); }}
+                                zoom={zoom}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      partIdx += 2;
+                    </div>
+                  );
+                }
+                return systems;
+              })()}
             </div>
           </div>
 

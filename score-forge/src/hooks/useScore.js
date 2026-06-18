@@ -1,21 +1,57 @@
 import { useState } from "react";
 import { DURATION_MAP } from "../utils/constants";
 
-const DEFAULT_MEASURES = () => Array.from({ length: 4 }, () => ({ notes: [] }));
-
-const DEFAULT_PARTS = [
-  { id: 1, name: "Violin I",  clef: "treble", instrument: "violin", timeSig: "4/4", measures: DEFAULT_MEASURES() },
-  { id: 2, name: "Violin II", clef: "treble", instrument: "violin", timeSig: "4/4", measures: DEFAULT_MEASURES() },
-  { id: 3, name: "Piano",     clef: "bass",   instrument: "piano",  timeSig: "4/4", measures: DEFAULT_MEASURES() },
-];
+const DEFAULT_MEASURES = (count) => Array.from({ length: count }, () => ({ notes: [] }));
 
 export function useScore() {
-  const [parts, setParts] = useState(DEFAULT_PARTS);
+  const [parts, setParts] = useState([]);
   const [title, setTitle] = useState("Untitled Score");
   const [composer, setComposer] = useState("");
   const [tempo, setTempo] = useState(120);
+  const [initialized, setInitialized] = useState(false);
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ── Initialize score with setup config ────────────────────────────────────
+  function initializeScore(config) {
+    const { tempo: initialTempo, measures, timeSignature } = config;
+    
+    const newParts = [
+      {
+        id: 1,
+        name: "Voice",
+        clef: "treble",
+        instrument: "violin",
+        timeSig: timeSignature,
+        measures: DEFAULT_MEASURES(measures),
+        visible: true, // Toggle visibility
+      },
+      {
+        id: 2,
+        name: "Piano",
+        clef: "treble", // Right hand (Treble clef)
+        instrument: "piano",
+        timeSig: timeSignature,
+        measures: DEFAULT_MEASURES(measures),
+        isGrouped: true,
+        groupedWith: 3,
+      },
+      {
+        id: 3,
+        name: "Piano",
+        clef: "bass", // Left hand (Bass clef)
+        instrument: "piano",
+        timeSig: timeSignature,
+        measures: DEFAULT_MEASURES(measures),
+        isGrouped: true,
+        groupedWith: 2,
+      },
+    ];
+
+    setParts(newParts);
+    setTempo(initialTempo);
+    setInitialized(true);
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
   function cloneState(prev) {
     return JSON.parse(JSON.stringify(prev));
   }
@@ -75,7 +111,7 @@ export function useScore() {
     });
   }
 
-  // ── Measure CRUD ───────────────────────────────────────────────────────────
+  // ── Measure CRUD ──────────────────────────────────────────────────────────
   function addMeasure() {
     setParts(prev => {
       const next = cloneState(prev);
@@ -103,7 +139,7 @@ export function useScore() {
         clef: "treble",
         instrument: "violin",
         timeSig: "4/4",
-        measures: Array.from({ length: measureCount }, () => ({ notes: [] })),
+        measures: DEFAULT_MEASURES(measureCount),
       }];
     });
   }
@@ -123,10 +159,36 @@ export function useScore() {
     });
   }
 
+  // ── Toggle Voice visibility ─────────────────────────────────────────────────
+  function toggleVoiceVisibility() {
+    setParts(prev => {
+      const next = cloneState(prev);
+      const voicePart = next.find(p => p.name === "Voice" && !p.isGrouped);
+      if (voicePart) {
+        voicePart.visible = !voicePart.visible;
+      }
+      return next;
+    });
+  }
+
   return {
-    parts, title, setTitle, composer, setComposer, tempo, setTempo,
-    addNote, deleteNote, updateNote,
-    addMeasure, deleteMeasure,
-    addPart, removePart, updatePart,
+    parts,
+    title,
+    setTitle,
+    composer,
+    setComposer,
+    tempo,
+    setTempo,
+    initialized,
+    initializeScore,
+    toggleVoiceVisibility,
+    addNote,
+    deleteNote,
+    updateNote,
+    addMeasure,
+    deleteMeasure,
+    addPart,
+    removePart,
+    updatePart,
   };
 }

@@ -25,6 +25,7 @@ export default function SetupModal({ isOpen, onClose, onConfirm }) {
   const [measures, setMeasures] = useState(4);
   const [keySignature, setKeySignature] = useState(0);
   const [timeSignature, setTimeSignature] = useState("4/4");
+  const [includeVoice, setIncludeVoice] = useState(false);
 
   if (!isOpen) return null;
 
@@ -34,6 +35,7 @@ export default function SetupModal({ isOpen, onClose, onConfirm }) {
       measures,
       keySignature: KEY_SIGNATURES[keySignature],
       timeSignature,
+      includeVoice,
     });
   };
 
@@ -198,7 +200,7 @@ export default function SetupModal({ isOpen, onClose, onConfirm }) {
         </div>
 
         {/* Time Signature */}
-        <div style={{ marginBottom: 32 }}>
+        <div style={{ marginBottom: 24 }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 8, color: "#374151" }}>
             Time signature
           </label>
@@ -225,6 +227,22 @@ export default function SetupModal({ isOpen, onClose, onConfirm }) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Include Voice */}
+        <div style={{ marginBottom: 32, padding: 16, background: "#f9fafb", borderRadius: 8 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", fontSize: 14, fontWeight: 500, color: "#374151" }}>
+            <input
+              type="checkbox"
+              checked={includeVoice}
+              onChange={(e) => setIncludeVoice(e.target.checked)}
+              style={{ width: 18, height: 18, cursor: "pointer" }}
+            />
+            Include Voice staff (optional)
+          </label>
+          <p style={{ fontSize: 12, color: "#6b7280", margin: "8px 0 0 30px" }}>
+            Add a vocal line above the piano staves
+          </p>
         </div>
 
         {/* Buttons */}

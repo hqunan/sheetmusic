@@ -9,21 +9,13 @@ export function useScore() {
   const [composer, setComposer] = useState("");
   const [tempo, setTempo] = useState(120);
   const [initialized, setInitialized] = useState(false);
+  const [showVoice, setShowVoice] = useState(false); // Voice toggle
 
   // ── Initialize score with setup config ────────────────────────────────────
   function initializeScore(config) {
     const { tempo: initialTempo, measures, timeSignature } = config;
     
     const newParts = [
-      {
-        id: 1,
-        name: "Voice",
-        clef: "treble",
-        instrument: "violin",
-        timeSig: timeSignature,
-        measures: DEFAULT_MEASURES(measures),
-        visible: true, // Toggle visibility
-      },
       {
         id: 2,
         name: "Piano",
@@ -45,6 +37,19 @@ export function useScore() {
         groupedWith: 2,
       },
     ];
+
+    // Add Voice only if toggled on
+    if (showVoice) {
+      newParts.unshift({
+        id: 1,
+        name: "Voice",
+        clef: "treble",
+        instrument: "violin",
+        timeSig: timeSignature,
+        measures: DEFAULT_MEASURES(measures),
+        visible: true,
+      });
+    }
 
     setParts(newParts);
     setTempo(initialTempo);
@@ -160,15 +165,26 @@ export function useScore() {
   }
 
   // ── Toggle Voice visibility ─────────────────────────────────────────────────
-  function toggleVoiceVisibility() {
-    setParts(prev => {
-      const next = cloneState(prev);
-      const voicePart = next.find(p => p.name === "Voice" && !p.isGrouped);
-      if (voicePart) {
-        voicePart.visible = !voicePart.visible;
-      }
-      return next;
-    });
+  function toggleVoice() {
+    setShowVoice(!showVoice);
+    // If toggling voice on, add it to parts
+    if (!showVoice) {
+      setParts(prev => {
+        const voicePart = {
+          id: 1,
+          name: "Voice",
+          clef: "treble",
+          instrument: "violin",
+          timeSig: prev[0]?.timeSig || "4/4",
+          measures: prev[0]?.measures.map(() => ({ notes: [] })) || DEFAULT_MEASURES(4),
+          visible: true,
+        };
+        return [voicePart, ...prev];
+      });
+    } else {
+      // If toggling voice off, remove it
+      setParts(prev => prev.filter(p => p.name !== "Voice" || p.isGrouped));
+    }
   }
 
   return {
@@ -180,8 +196,10 @@ export function useScore() {
     tempo,
     setTempo,
     initialized,
+    showVoice,
+    setShowVoice,
     initializeScore,
-    toggleVoiceVisibility,
+    toggleVoice,
     addNote,
     deleteNote,
     updateNote,
